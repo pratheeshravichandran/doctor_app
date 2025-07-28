@@ -4,9 +4,26 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Services\FileService;
+use App\Models\Specialization;
+use Carbon\Carbon;
+use App\Models\Role;
+use Illuminate\Http\JsonResponse;
+use Exception;
+use Validator;
+use DB;
+use App\Models\User;
+
 
 class AuthController extends Controller
 {
+    protected $fileService;
+
+    public function __construct(FileService $fileService)
+    {
+        $this->fileService = $fileService;
+    }
+
     public function getMetadata(): JsonResponse
     {
         try {
@@ -22,6 +39,28 @@ class AuthController extends Controller
         }
     }
 
+    public function getSpecialization(): JsonResponse
+    {
+        try {
+            $departments = Specialization::get();
+    
+            $formatted = $departments->map(function ($dept) {
+                return [
+                    'id' => $dept->id,
+                    'name' => $dept->name,
+                    'created_at' => $dept->created_at,
+                    'updated_at' => $dept->updated_at,
+                ];
+            });
+    
+            return response()->json([
+                'departments' => $formatted,
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Failed to retrieve departments', 'details' => $e->getMessage()], 500);
+        }
+    }
+
     public function register(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -31,11 +70,9 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users,email',
             'phone_number' => 'required_if:role,3,4|string|unique:users,phone_number',
             'password' => 'required|string|min:6',
-            'role' => 'required|exists:roles,id|not_in:1',
-            'roll_no' => 'nullable|required_if:role,4|unique:users,roll_no|exclude_if:role,!4',
-            'staff_id' => 'required_if:role,3|exclude_if:role,!3|nullable|unique:users,staff_id',
+            'role_id' => 'required|exists:roles,id|not_in:1',
             'dob' => 'required_if:role,3,4|date',
-            'profile_pic' => 'required_if:role,3,4|image|mimes:jpeg,png,jpg,gif,bmp,svg,webp,heic,heif,tiff',
+           'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,svg,webp,heic,heif,tiff'
         ]);
 
         if ($validator->fails()) {
@@ -43,33 +80,6 @@ class AuthController extends Controller
         }
 
         try {
-            DB::beginTransaction();
-
-            $verification = Verification::where('verification_token', $request->input('verification_token'))
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if (!$verification) {
-                return response()->json(['error' => 'Invalid verification token'], 400);
-            }
-
-            if ($verification->phone_number !== $request->phone_number) {
-                return response()->json(['error' => 'Phone number Mismatch'], 400);
-            }
-
-            // if ($verification->email !== $request->email) {
-            //     return response()->json(['error' => 'Email Mismatch'], 400);
-            // }
-
-            if ($verification->phone_verified == false) {
-                return response()->json(['error' => 'Please verify your phone number before signing in'], 400);
-            }
-
-            // if ($verification->email_verified == false) {
-            //     return response()->json(['error' => 'Please verify your email before signing in'], 400);
-            // }
-
-
             $profilePicPath = $request->hasFile('profile_pic')
                 ? $this->fileService->upload($request->file('profile_pic'), 'users', 'profile_pics')['file_path']
                 : null;
@@ -81,8 +91,7 @@ class AuthController extends Controller
                 'email' => $request->email,
                 'phone_number' => $request->phone_number,
                 'password' => Hash::make($request->password),
-                'role' => $request->role,
-                'staff_id' => $request->staff_id,
+                'role_id' => $request->role_id,
                 'dob' => $request->dob,
                 'profile_pic' => $profilePicPath,
             ]);
@@ -98,5 +107,85 @@ class AuthController extends Controller
             return response()->json(['error' => $e->getMessage()], 500);
         }
     }
+
+
+    public function login(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'email' => 'required_without:phone_number|email',
+                'phone_number' => 'required_without:email|string',
+                'password' => 'required',
+            ]);
+
+            if ($request->filled('email')) {
+                $request->merge(['email' => trim($request->email)]);
+            }
+
+            if($request->filled('phone_number')) {
+                $request->merge(['phone_number' => trim($request->phone_number)]);
+            }
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors()], 422);
+            }
+
+            $user = User::where(function ($query) use ($request) {
+                if ($request->filled('email')) {
+                    $query->where('email', $request->email);
+                }
+                if ($request->filled('phone_number')) {
+                    $query->orWhere('phone_number', $request->phone_number);
+                }
+            })->first();
+
+            if (!$user) {
+                return response()->json(['error' => 'User not found'], 404);
+            }
+
+            if (!Hash::check($request->password, $user->password)) {
+                return response()->json(['error' => 'Invalid password'], 401);
+            }
+            $token = $user->createToken('auth_token');
+            $plainTextToken = $token->plainTextToken;
+            $tokenId = $token->accessToken->id;
+
+            $user->tokens()->where('last_used_at', '<', Carbon::now()->subDays(3))->delete();
+
+            return response()->json([
+                'message' => 'Login successful',
+                'access_token' => $plainTextToken,
+                'role' => $user->role->role_name,
+                'token_type' => 'Bearer',
+                'user' => $user->makeHidden(['password'])
+                    ->setAttribute('profile_pic', $user->profile_pic ? $this->fileService->generateUrl($user->profile_pic) : null)
+
+            ]);
+        } catch (Exception $e) {
+            return response()->json(['error' => 'Login failed', 'details' => $e->getMessage()], 500);
+        }
+    }
+
+
+    public function delete($id)
+    {
+        try {
+            $user = User::findOrFail($id);
+            if ($user->profile_pic && \Storage::disk('public')->exists($user->profile_pic)) {
+                \Storage::disk('public')->delete($user->profile_pic);
+            }
+    
+            $user->delete();
+    
+            return response()->json([
+                'message' => 'User deleted successfully.',
+            ]);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'User not found.'], 404);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to delete user. ' . $e->getMessage()], 500);
+        }
+    }
+
 
 }

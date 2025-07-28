@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from "axios";
-import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Mail, Lock, Phone, Calendar, UserCheck, Stethoscope, Shield, CheckCircle, Building2, Upload, Image } from 'lucide-react';
 
@@ -76,10 +75,9 @@ const MedicalAuthApp = () => {
       }
     
       try {
-        const response = await axios.post('/login', credentials);
+        const response = await axios.post('http://localhost:8000/api/login', credentials);
     
         const token = response.data.access_token;
-        const message=response.data.message;
         const role = response.data.user?.role?.role_name;
     
         if (token) {
@@ -91,7 +89,6 @@ const MedicalAuthApp = () => {
           const path = roleToPath[role];
           if (path) {
             navigate(path);
-            toast.success(message || "Login successful");
           } else {
             console.error('Unknown role:', role);
             alert('Unknown user role. Please contact administrator.');
@@ -102,24 +99,18 @@ const MedicalAuthApp = () => {
         }
       } catch (error) {
         console.error('Login error:', error);
-      
+    
         if (error.response && error.response.data) {
-          const data = error.response.data;
-      
-          if (data.errors) {
-            // Collect all field errors into a single string
-            const messages = Object.values(data.errors)
-              .flat()
-              .join('\n'); // Join all error messages with new lines
-              toast.error(messages); // 👈 Show all errors in a single alert
-          } else {
-            const apiError = data.message || data.error || 'Login failed';
-            toast.error(apiError);
-          }
+          const apiError = error.response.data.message ||
+                           error.response.data.error ||
+                           'Login failed';
+          setErrors({ general: apiError });
         } else {
-          alert('Something went wrong. Please try again.');
+          setErrors({ general: 'Something went wrong. Please try again.' });
         }
-      }      
+      } finally {
+        setIsLoading(false);
+      }
     }
   else{
   
@@ -132,10 +123,9 @@ const MedicalAuthApp = () => {
     data.append('password', formData.password);
     data.append('role_id', formData.role_id || 7); // default role
     data.append('dob', formData.dateOfBirth);
-    if (formData.profile_pic) {
-      data.append('profile_pic', formData.profile_pic);
-    }
-    
+    if (data.profile_pic) {
+      formData.append('profile_pic', data.profile_pic);
+    } 
   
     try {
       const response = await axios.post('/register', data); // No need for full URL because baseURL is set
@@ -497,18 +487,6 @@ const MedicalAuthApp = () => {
               </button>
             </p>
           </div>
-          <ToastContainer 
-  theme="colored"     // "colored", "dark", "light", or "auto"
-  position="top-right"
-  autoClose={3000}
-  hideProgressBar={false}
-  newestOnTop={true}
-  closeOnClick
-  pauseOnFocusLoss
-  draggable
-  pauseOnHover
-/>
-
 
           {/* Security Notice */}
           <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-xl">

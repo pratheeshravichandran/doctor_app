@@ -8,7 +8,6 @@ return new class extends Migration
 {
     public function up(): void
     {
-
         Schema::create('roles',function(Blueprint $table){
             $table->id();
             $table->string('role_name');
@@ -26,9 +25,9 @@ return new class extends Migration
             $table->string('first_name');
             $table->string('last_name');
             $table->string('phone_number');
-            $table->string('staff_id');
             $table->string('email')->unique();
             $table->string('dob');
+            $table->enum('gender', ['Male', 'Female', 'Other'])->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->foreignId('role_id')->constrained('roles')->onDelete('cascade');        
             $table->string('password');
@@ -42,6 +41,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('medical_registration_number');
             $table->string('registration_council');
+            $table->string('staff_id');
             $table->string('registration_state');
             $table->year('year_of_registration');
             $table->integer('years_of_experience')->nullable();
