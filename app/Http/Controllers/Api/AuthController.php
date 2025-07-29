@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Services\FileService;
@@ -106,6 +107,33 @@ class AuthController extends Controller
             DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+
+    public function getAuthenticatedUser()
+    {
+        $user = Auth::user();
+    
+        if (!$user) {
+            return response()->json(['error' => 'User not authenticated'], 401);
+        }
+    
+        return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'email' => $user->email,
+                'phone_number' => $user->phone_number,
+                'gender' => $user->gender,
+                'role_name' => $user->role->role_name ?? null,
+                'dob' => $user->dob,
+                'profile_pic' => $user->profile_pic
+                    ? $this->fileService->generateUrl($user->profile_pic)
+                    : null,
+            ],
+            'message' => 'Authenticated user retrieved successfully'
+        ]);
     }
 
 

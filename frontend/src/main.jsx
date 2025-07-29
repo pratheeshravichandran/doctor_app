@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
-import PatientDashboard from './components/patient/Dashboard.jsx';
+import PatientDashboard from './components/patient/PatientDashboard.jsx';
 import LoginPage from './components/LoginPage.jsx';
 import axios from 'axios';
 import 'react-toastify/dist/ReactToastify.css';
