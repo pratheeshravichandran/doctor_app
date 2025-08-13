@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from "axios";
+import { showSuccess, showError } from "@/utils/toastUtils";
 import { toast, ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, User, Mail, Lock, Phone, Calendar, UserCheck, Stethoscope, Shield, CheckCircle, Building2, Upload, Image } from 'lucide-react';
@@ -30,6 +31,7 @@ const MedicalAuthApp = () => {
 
 
   const roleToPath = {
+    SuperAdmin:"/super-admin-dashboard",
     Admin: "/admin-dashboard",
     HR: "/hr-dashboard",
     Staff: "/staff-dashboard",
@@ -91,14 +93,14 @@ const MedicalAuthApp = () => {
           const path = roleToPath[role];
           if (path) {
             navigate(path);
-            toast.success(message || "Login successful");
+            showSuccess("Login Successfull");
           } else {
             console.error('Unknown role:', role);
-            alert('Unknown user role. Please contact administrator.');
+            showError('user not found'); 
           }
         } else {
           console.error('No role found in response');
-          alert('User role not found. Please contact administrator.');
+          showError('user not found'); 
         }
       } catch (error) {
         console.error('Login error:', error);
@@ -111,10 +113,10 @@ const MedicalAuthApp = () => {
             const messages = Object.values(data.errors)
               .flat()
               .join('\n'); // Join all error messages with new lines
-              toast.error(messages); // 👈 Show all errors in a single alert
+              showError(messages); // 👈 Show all errors in a single alert
           } else {
             const apiError = data.message || data.error || 'Login failed';
-            toast.error(apiError);
+            showError(apiError);
           }
         } else {
           alert('Something went wrong. Please try again.');

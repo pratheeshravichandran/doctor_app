@@ -12,3 +12,7 @@ use Illuminate\Support\Facades\Route;
     Route::middleware('auth:sanctum','check.role:Admin,HR,Patient')->group(function () {
         Route::get('/auth-user', [AuthController::class, 'getAuthenticatedUser']);
     });
+
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/user-by-email', [AuthController::class, 'getUserByEmail']);
+    });

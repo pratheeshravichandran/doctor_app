@@ -67,12 +67,12 @@ class AuthController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'gender' => 'required_if:role,3,4|in:Male,Female,Other',
+            'gender' => 'required|in:Male,Female,Other',
             'email' => 'required|email|unique:users,email',
-            'phone_number' => 'required_if:role,3,4|string|unique:users,phone_number',
+            'phone_number' => 'required|string|unique:users,phone_number',
             'password' => 'required|string|min:6',
             'role_id' => 'required|exists:roles,id|not_in:1',
-            'dob' => 'required_if:role,3,4|date',
+            'dob' => 'required|date',
            'profile_pic' => 'nullable|image|mimes:jpeg,png,jpg,gif,bmp,svg,webp,heic,heif,tiff'
         ]);
 
@@ -109,6 +109,54 @@ class AuthController extends Controller
         }
     }
 
+    public function getUserByEmail(Request $request)
+    {
+        try {
+            $email = $request->query('email');
+    
+            if (!$email) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Email is required'
+                ], 400);
+            }
+    
+            $user = User::with('role')->where('email', $email)->first();
+    
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not found'
+                ], 404);
+            }
+    
+            return response()->json([
+                'success' => true,
+                'user' => [
+                    'id' => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->last_name,
+                    'phone_number'=>$user->phone_number,
+                    'gender'=>$user->gender,
+                    'email' => $user->email,
+                    'role_id' => $user->role_id,
+                    'dob'=>$user->dob,
+                    'role_name' => $user->role->role_name ?? null,
+                    'profile_pic'=>$user->profile_pic,
+                    'created_at' => $user->created_at,
+                    'updated_at' => $user->updated_at
+                ]
+            ], 200);
+    
+        } catch (Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+    
 
     public function getAuthenticatedUser()
     {

@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './index.css';
 import PatientDashboard from './components/patient/PatientDashboard.jsx';
+import AdminDashboard from './components/admin/Dashboard';
 import LoginPage from './components/LoginPage.jsx';
 import axios from 'axios';
 import 'react-toastify/dist/ReactToastify.css';
@@ -18,8 +19,19 @@ ReactDOM.createRoot(document.getElementById('root')).render(
       <Routes>
         <Route path="/" element={<LoginPage />} />
         <Route path="/patient-dashboard" element={<PatientDashboard />} />
+        <Route path="/admin-dashboard" element={<AdminDashboard />} />
       </Routes>
-      <ToastContainer position="top-center" autoClose={3000} />
     </BrowserRouter>
+    <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="colored"
+      />
   </React.StrictMode>
 );
